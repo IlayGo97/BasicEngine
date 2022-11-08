@@ -1,5 +1,8 @@
 # Directories
 .idea/
 build/
-cmake-build-debug
+cmake-build-debug/
+.vs/
+include/
+lib/
 # Files
