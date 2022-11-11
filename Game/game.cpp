@@ -1,4 +1,5 @@
 #include "game.h"
+#include "stb_image.h"
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -21,16 +22,34 @@ Game::Game(float angle ,float relationWH, float near1, float far1) : Scene(angle
 { 	
 }
 
+void Game::AddGrayScaleText() {
+    int width, height, numComponents;
+    unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
+    AddTexture(width, height, data);
+}
+
+void Game::AddHalftoneText() {
+    int width, height, numComponents;
+    unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
+    AddTexture(width, height, data);
+}
+
+void Game::AddEdgesText() {
+    int width, height, numComponents;
+    unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
+    AddTexture(width, height, data);
+}
+
 void Game::Init()
 {		
 
 	AddShader("../res/shaders/pickingShader");	
 	AddShader("../res/shaders/basicShader");
-	
-//	AddTexture("../res/textures/box0.bmp",false);
-    AddTexture("../res/textures/lena256.jpg", false);
+
+    AddEdgesText();
+    AddHalftoneText();
+    AddGrayScaleText();
 	AddShape(Plane,-1,TRIANGLES);
-	
 	pickedShape = 0;
 	
 	SetShapeTex(0,0);
@@ -52,7 +71,7 @@ void Game::Update(const glm::mat4 &MVP,const glm::mat4 &Model,const int  shaderI
 	s->SetUniform4f("lightDirection", 0.0f , 0.0f, -1.0f, 0.0f);
 	if(shaderIndx == 0)
 		s->SetUniform4f("lightColor",r/255.0f, g/255.0f, b/255.0f,1.0f);
-	else 
+	else
 		s->SetUniform4f("lightColor",0.7f,0.8f,0.1f,1.0f);
 	s->Unbind();
 }

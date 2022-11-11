@@ -14,5 +14,10 @@ public:
 	void WhenTranslate();
 	void Motion();
 	~Game(void);
+
+private:
+    void AddEdgesText();
+    void AddHalftoneText();
+    void AddGrayScaleText();
 };
 
