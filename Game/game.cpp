@@ -53,7 +53,12 @@ static int round(int val, int val_amount){
     return (val / val_amount) * val_amount;
 }
 
-#define inc(arr, i, j, amount) set_val(arr, to_index(i,j), arr[to_index(i,j)] + amount)
+static void inc(unsigned char* data, unsigned char amount, int i, int j, int width, int height){
+    int val = data[to_index(i,j)];
+    val = val + amount;
+    set_val(data, to_index(i,j), val);
+}
+
 void Game::AddFloydSteinbergText() {
     int width, height, numComponents;
     double alpha = (double)7/16;
@@ -62,20 +67,16 @@ void Game::AddFloydSteinbergText() {
     double delta = (double)1/16;
     unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
     auto* output = (unsigned char*)malloc(height * width * color_size_bytes * sizeof(unsigned  char));
-    for(int i = 0; i < height; i ++)
-        for(int j = 0; j < width; j++){
-            int P = round(data[to_index(i,j)], 16);
-            set_val(output, to_index(i,j), P)
-        }
+    memcpy(output, data, height * width * color_size_bytes * sizeof(unsigned  char));
     for(int i = 0; i < height - 1; i ++)
         for(int j = 0; j < width -1; j++){
             int P = round(data[to_index(i,j)], 16);
             int e = data[to_index(i,j)] - P;
             set_val(output, to_index(i,j), P)
-            inc(data, i, j+1, alpha * e)
-            inc(data, i + 1, j-1, beta * e)
-            inc(data, i + 1, j, gamma * e)
-            inc(data, i + 1, j + 1, delta * e)
+            inc(data, alpha * e, i, j + 1, width, height);
+            inc(data, beta * e, i + 1, j - 1, width, height);
+            inc(data, gamma * e, i + 1, j, width, height);
+            inc(data, delta * e, i + 1, j + 1, width, height);
         }
     AddTexture(width, height, output);
 }
