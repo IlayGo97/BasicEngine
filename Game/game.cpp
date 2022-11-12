@@ -273,7 +273,7 @@ void Game::AddEdgesText() {
     int* gradX = applyGradx(data, width, height);
     int* gradY = applyGrady(data, width, height);
     int* grad = getGrad(gradX, gradY, height, width);
-    data = Thresholding(grad, max_grad * 0.6, max_grad * 0.3, height, width);
+    data = Thresholding(grad, max_grad * 0.5, max_grad * 0.3, height, width);
     delete[]  gradX;
     delete[] gradY;
     delete[] grad;
