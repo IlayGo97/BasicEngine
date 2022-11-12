@@ -21,22 +21,261 @@ Game::Game() : Scene()
 Game::Game(float angle ,float relationWH, float near1, float far1) : Scene(angle,relationWH,near1,far1)
 { 	
 }
+#define color_size_bytes 4
+#define black(ARR, X, Y) ARR[X][(Y)] = 0; ARR[X][(Y)+1] = 0; ARR[X][(Y)+2] = 0; ARR[X][(Y)+3] = 255;
+#define white(ARR, X, Y) ARR[X][(Y)] = 255; ARR[X][(Y)+1] = 255; ARR[X][(Y)+2] = 255; ARR[X][(Y)+3] = 255;
+#define set_val(ARR, X, Y, val) ARR[X][(Y)] = val; ARR[X][(Y)+1] = val; ARR[X][(Y)+2] = val; ARR[X][(Y)+3] = 255;
+#define set_val(ARR, INDEX, val) ARR[INDEX] = val; ARR[INDEX+1] = val; ARR[INDEX+2] = val; ARR[INDEX+3] = 255;
+#define to_index(i,j) i * width * color_size_bytes + j * color_size_bytes
+#define to_index_normal(i,j) (i) * width + j
+#define pixel_average(ARR, X, Y) ((ARR[X][(Y)] + ARR[X][(Y)+1] + ARR[X][(Y)+2])/3)
 
-void Game::AddGrayScaleText() {
-    int width, height, numComponents;
-    unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
-    AddTexture(width, height, data);
+static unsigned  char** single_array_to_multi(unsigned  char* data, int width, int height){
+    unsigned  char** output = (unsigned  char**)malloc(height * sizeof (unsigned  char*));
+    for(int i = 0; i < height; i ++)
+        output[i] = (unsigned  char*)malloc(width * 4);
+    int data_size = color_size_bytes * width * height;
+    for(int i = 0; i < data_size; i++){
+        output[i / (width * 4)][i % (4 *width)] = data[i];
+    }
+    return output;
 }
 
-void Game::AddHalftoneText() {
+static unsigned char* TwoD2OneD(unsigned  char** arr, int width, int height){
+    unsigned char* output = (unsigned char*) malloc(width * height * sizeof (uint64_t));
+    for(int i = 0; i < height; i ++)
+        for(int j = 0; j < width * 4; j++)
+            output[i * width * 4 + j] = arr[i][j];
+    return output;
+}
+
+static int round(int val, int val_amount){
+    return (val / val_amount) * val_amount;
+}
+
+#define inc(arr, i, j, amount) set_val(arr, to_index(i,j), arr[to_index(i,j)] + amount)
+void Game::AddFloydSteinbergText() {
+    int width, height, numComponents;
+    double alpha = (double)7/16;
+    double beta = (double)3/16;
+    double gamma = (double)5/16;
+    double delta = (double)1/16;
+    unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
+    auto* output = (unsigned char*)malloc(height * width * color_size_bytes * sizeof(unsigned  char));
+    for(int i = 0; i < height; i ++)
+        for(int j = 0; j < width; j++){
+            int P = round(data[to_index(i,j)], 16);
+            set_val(output, to_index(i,j), P)
+        }
+    for(int i = 0; i < height - 1; i ++)
+        for(int j = 0; j < width -1; j++){
+            int P = round(data[to_index(i,j)], 16);
+            int e = data[to_index(i,j)] - P;
+            set_val(output, to_index(i,j), P)
+            inc(data, i, j+1, alpha * e)
+            inc(data, i + 1, j-1, beta * e)
+            inc(data, i + 1, j, gamma * e)
+            inc(data, i + 1, j + 1, delta * e)
+        }
+    AddTexture(width, height, output);
+}
+
+void Game::AddHalftonePatternText() {
     int width, height, numComponents;
     unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
-    AddTexture(width, height, data);
+    unsigned char** data2d = single_array_to_multi(data, width, height);
+    unsigned char** output2d = (unsigned  char**)malloc(2 * height * sizeof (unsigned  char*));
+    for(int i = 0; i < height * 2; i ++)
+        output2d[i] = (unsigned  char*)malloc(2 * width * color_size_bytes * sizeof (unsigned char));
+    for(int i = 0; i < height; i ++)
+        for(int j = 0; j < width * color_size_bytes; j = j + color_size_bytes)
+        {
+            int average = pixel_average(data2d,i,j);
+            if (average < 0.20 * 255){
+                black(output2d,2*i,2*j)
+                black(output2d,2*i,2*j + color_size_bytes)
+                black(output2d,2*i + 1,2*j)
+                black(output2d,2*i + 1,2*j + color_size_bytes)
+            } else if (average < 0.4 * 255) {
+                white(output2d,2*i,2*j)
+                black(output2d,2*i,2*j + color_size_bytes)
+                black(output2d,2*i + 1,2*j)
+                black(output2d,2*i + 1,2*j + color_size_bytes)
+            } else if (average < 0.6 * 255) {
+                white(output2d,2*i,2*j)
+                black(output2d,2*i,2*j + color_size_bytes)
+                black(output2d,2*i + 1,2*j)
+                white(output2d,2*i + 1,2*j + color_size_bytes)
+            } else if (average < 0.8 * 255) {
+                white(output2d,2*i,2*j)
+                white(output2d,2*i,2*j + color_size_bytes)
+                black(output2d,2*i + 1,2*j)
+                white(output2d,2*i + 1,2*j + color_size_bytes)
+            } else{
+                white(output2d,2*i,2*j);
+                white(output2d,2*i,2*j + color_size_bytes);
+                white(output2d,2*i + 1,2*j);
+                white(output2d,2*i + 1,2*j + color_size_bytes);
+            }
+        }
+    AddTexture(2 * width,2 * height, TwoD2OneD(output2d, width * 2, height * 2));
+}
+
+//void Game::AddHalftonePatternText() {
+//    int width, height, numComponents;
+//    unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
+//    unsigned char** data2d = single_array_to_multi(data, width, height);
+//    unsigned char** output2d = (unsigned  char**)malloc(height * sizeof (unsigned  char*));
+//    for(int i = 0; i < height; i ++)
+//        output2d[i] = (unsigned  char*)malloc( width * color_size_bytes * sizeof (unsigned char));
+//    for(int i = 0; i < height - 1; i = i + 2)
+//        for(int j = 0; j < (width - 1) * color_size_bytes; j = j + 2 * color_size_bytes)
+//        {
+//            int average = pixel_average(data2d,i,j) + pixel_average(data2d,i,j + 1) + pixel_average(data2d,i + 1,j) + pixel_average(data2d,i + 1,j + 1);
+//            average = average /  4;
+//            if (average < 0.20 * 255){
+//                black(output2d,i,j)
+//                black(output2d,i,j + color_size_bytes)
+//                black(output2d,i + 1,j)
+//                black(output2d,i + 1,j + color_size_bytes)
+//            } else if (average < 0.4 * 255) {
+//                white(output2d,i,j)
+//                black(output2d,i,j + color_size_bytes)
+//                black(output2d,i + 1,j)
+//                black(output2d,i + 1,j + color_size_bytes)
+//            } else if (average < 0.6 * 255) {
+//                white(output2d,i,j)
+//                black(output2d,i,j + color_size_bytes)
+//                black(output2d,i + 1,j)
+//                white(output2d,i + 1,j + color_size_bytes)
+//            } else if (average < 0.8 * 255) {
+//                white(output2d,i,j)
+//                white(output2d,i,j + color_size_bytes)
+//                black(output2d,i + 1,j)
+//                white(output2d,i + 1,j + color_size_bytes)
+//            } else{
+//                white(output2d,i,j)
+//                white(output2d,i,j + color_size_bytes)
+//                white(output2d,i + 1,j)
+//                white(output2d,i + 1,j + color_size_bytes)
+//            }
+//        }
+//    AddTexture( width,height, TwoD2OneD(output2d, width, height));
+//}
+
+
+
+unsigned char *
+applyConv(const unsigned char *data, int width, int height, const glm::detail::tmat3x3<float, glm::highp> &filter);
+
+int *applyGrad(const unsigned char *data, int width, int height, const glm::detail::tmat3x3<float, glm::highp> &filter);
+
+unsigned  char* applyGaus3(unsigned  char* data, int width, int height){
+    auto filter = glm::detail::tmat3x3<float, glm::highp>(
+            1, 2, 1,
+            2, 4, 2,
+            1, 2, 1);
+    float sum = 16.0;
+    filter = filter / sum;
+    unsigned char *output = applyConv(data, width, height, filter);
+    return output;
+}
+
+int* applyGradx(unsigned  char* data, int width, int height){
+    auto filter = glm::detail::tmat3x3<float, glm::highp>(
+            -1, 0, 1,
+            -2, 0, 2,
+            -1, 0, 1);
+    int *output = applyGrad(data, width, height, filter);
+    return output;
+}
+
+int *applyGrad(const unsigned char *data, int width, int height, const glm::detail::tmat3x3<float, glm::highp> &filter) {
+    int* output = (int *)malloc(width * height * sizeof(int));
+    for(int i = 1; i < height - 1; i ++)
+        for(int j = 1; j < width - 1; j ++) {
+            output[to_index_normal(i,j)] = 0;
+            for (int h = i; h < i + 3; h++)
+                for (int w = j; w < j + 3; w++) {
+                    int newval = output[to_index_normal(i, j)] + filter[h - i][w - j] * data[to_index(h, w)];
+                    output[to_index_normal(i,j)] = newval;
+                }
+        }
+    return output;
+}
+int* applyGrady(unsigned  char* data, int width, int height){
+    auto filter = glm::detail::tmat3x3<float, glm::highp>(
+            -1, -2, -1,
+            0, 0, 0,
+            1, 2, 1);
+    int *output = applyGrad(data, width, height, filter);
+    return output;
+}
+
+unsigned char *
+applyConv(const unsigned char *data, int width, int height, const glm::detail::tmat3x3<float, glm::highp> &filter) {
+    auto* output = (unsigned char*)malloc(height * width * color_size_bytes * sizeof(unsigned  char));
+    memcpy(output, data, height * width * color_size_bytes * sizeof(unsigned  char));
+    for(int i = 1; i < height - 1; i ++)
+        for(int j = 1; j < width - 1; j ++) {
+            set_val(output, to_index(i, j), 0);
+            for (int h = i; h < i + 3; h++)
+                for (int w = j; w < j + 3; w++) {
+                    int newval = output[to_index(i, j)] + filter[h - i][w - j] * data[to_index(h, w)];
+                    newval = std::max(0, newval);
+                    newval = std::min(255, newval);
+                    set_val(output, to_index(i, j), newval);
+                }
+        }
+    return output;
+}
+
+int *
+getGrad(int *gradX, int *gradY, int height, int width){
+    auto* output = (int*)malloc(height * width * sizeof(int));
+    memset(output, 0, height * width * sizeof(int));
+    for(int i = 1; i < height - 1; i ++)
+        for(int j = 1; j < width - 1; j ++){
+            int index = to_index_normal(i,j);
+            int new_val = gradY[index] * gradY[index] + gradX[index] * gradX[index];
+            new_val = std::sqrt(new_val);
+            output[to_index_normal(i,j)] = new_val;
+        }
+    return output;
+}
+
+unsigned char *
+Thresholding(int* grad, int highthresh, int lowthresh ,int height, int width){
+    auto* output = (unsigned char*)malloc(height * width * color_size_bytes * sizeof(unsigned  char));
+    memset(output, 0, height * width * color_size_bytes * sizeof(unsigned  char));
+    for(int i = 1; i < height - 1; i ++)
+        for(int j = 1; j < width - 1; j ++){
+            int index = to_index(i,j);
+            int val = grad[to_index_normal(i,j)];
+            if (val < lowthresh) {
+                set_val(output, index, 0)
+            }
+            else if (val < highthresh) {
+                set_val(output, index, 0)
+            } else {
+                set_val(output, index, 255)
+            }
+        }
+    return output;
 }
 
 void Game::AddEdgesText() {
+    int max_grad = std::sqrt(255 * 255 * 2);
     int width, height, numComponents;
     unsigned char* data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
+    data = applyGaus3(data, width, height);
+    int* gradX = applyGradx(data, width, height);
+    int* gradY = applyGrady(data, width, height);
+    int* grad = getGrad(gradX, gradY, height, width);
+    data = Thresholding(grad, max_grad * 0.6, max_grad * 0.3, height, width);
+    delete[]  gradX;
+    delete[] gradY;
+    delete[] grad;
     AddTexture(width, height, data);
 }
 
@@ -45,14 +284,18 @@ void Game::Init()
 
 	AddShader("../res/shaders/pickingShader");	
 	AddShader("../res/shaders/basicShader");
-
-    AddEdgesText();
-    AddHalftoneText();
-    AddGrayScaleText();
+    AddTexture("../res/textures/lena256.jpg", false); // 0
+    AddEdgesText();                                                     // 1
+    AddHalftonePatternText();                                           // 2
+    AddFloydSteinbergText();                                            // 3
 	AddShape(Plane,-1,TRIANGLES);
-	pickedShape = 0;
-	
-	SetShapeTex(0,0);
+	AddShape(Plane,-1,TRIANGLES);
+	AddShape(Plane,-1,TRIANGLES);
+	AddShape(Plane,-1,TRIANGLES);
+    for (int i = 0; i < 4; i ++) {
+        pickedShape = i;
+        SetShapeTex(i, i);
+    }
 	MoveCamera(0,zTranslate,10);
 	pickedShape = -1;
 	

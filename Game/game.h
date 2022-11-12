@@ -17,7 +17,7 @@ public:
 
 private:
     void AddEdgesText();
-    void AddHalftoneText();
-    void AddGrayScaleText();
+    void AddHalftonePatternText();
+    void AddFloydSteinbergText();
 };
 

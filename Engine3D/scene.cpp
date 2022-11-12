@@ -98,6 +98,21 @@
 			if(shapes[i]->Is2Render())
 			{
 				glm::mat4 Model = Normal * shapes[i]->MakeTrans();
+                switch (i) {
+                    case 0:
+                        glViewport(0, 256, 256, 256);
+                        break;
+                    case 1:
+                        glViewport(256, 256, 256, 256);
+                        break;
+                    case 2:
+                        glViewport(0, 0, 256, 256);
+                        break;
+                    case 3:
+                        glViewport(256, 0, 256, 256);
+                        break;
+
+                }
 				
 				if(shaderIndx > 0)
 				{
