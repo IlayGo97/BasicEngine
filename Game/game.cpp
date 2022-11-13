@@ -253,43 +253,45 @@ getGrad(int *gradX, int *gradY, int height, int width) {
     return output;
 }
 
-unsigned char *GradientOrientation(int *grad_x, int *grad_y, int height, int width) {
-    auto *gradient_orientation = (unsigned char *) malloc (height * width * sizeof(unsigned char));
+double *GradientOrientation(int *grad_x, int *grad_y, int height, int width) {
+    auto *gradient_orientation = (double *) malloc (height * width * sizeof(double));
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
             int index = to_index_normal(y, x);
-            unsigned char theta = convert_to_degree(atan2(grad_y[index], grad_x[index]));
+            double theta = convert_to_degree(atan2(grad_y[index], grad_x[index]));
             gradient_orientation[index] = theta;
         }
     }
+    return gradient_orientation;
 }
 
-unsigned char *NonMaximumSuppression(int *gradient_magnitude, unsigned char *gradient_direction, int height, int width) {
-    auto *output = (unsigned char *) calloc (height * width * 4 * sizeof(unsigned char), sizeof(unsigned char));
+int *
+NonMaximumSuppression(int *gradient_magnitude, double *gradient_direction, int height, int width) {
+    auto *output = (int *) calloc (height * width * sizeof(int), sizeof(int));
+    int pi = 180;
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
             int index = to_index_normal(y, x);
-            int before_pixel = 0;
-            int after_pixel = 0;
-            unsigned char direction = gradient_direction[index];
-            std::cout << direction << std::endl;
-            if ((0 <= direction < PI / 8) || (15 * PI / 8 <= direction <= 2 * PI)) {
+            int before_pixel;
+            int after_pixel;
+            double direction = gradient_direction[index];
+//            std::cout << direction << std::endl;
+            if ((0 <= direction < pi / 8) || (15 * pi / 8 <= direction <= 2 * pi)) {
                 before_pixel = gradient_magnitude[to_index_normal(y, x - 1)];
                 after_pixel = gradient_magnitude[to_index_normal(y, x + 1)];
-            } else if ((PI / 8 <= direction * 3 * PI / 8) || (9 * PI / 8 <= direction < 11 * PI / 8)) {
+            } else if ((pi / 8 <= direction * 3 * pi / 8) || (9 * pi / 8 <= direction < 11 * pi / 8)) {
                 before_pixel = gradient_magnitude[to_index_normal(y + 1, x - 1)];
                 after_pixel = gradient_magnitude[to_index_normal(y - 1, x + 1)];
-            } else if ((3 * PI / 8 <= direction < 5 * PI / 8) || (11 * PI / 8 <= direction < 13 * PI / 8)) {
+            } else if ((3 * pi / 8 <= direction < 5 * pi / 8) || (11 * pi / 8 <= direction < 13 * pi / 8)) {
                 before_pixel = gradient_magnitude[to_index_normal(y - 1, x)];
                 after_pixel = gradient_magnitude[to_index_normal(y + 1, x)];
             } else {
                 before_pixel = gradient_magnitude[to_index_normal(y - 1, x - 1)];
                 after_pixel = gradient_magnitude[to_index_normal(y + 1, x + 1)];
-
             }
             if (gradient_magnitude[to_index_normal(y, x)] >= before_pixel &&
                 gradient_magnitude[to_index_normal(y, x)] >= after_pixel) {
-                output[to_index(y, x)] = gradient_magnitude[to_index_normal(y, x)];
+                output[to_index_normal(y, x)] = gradient_magnitude[to_index_normal(y, x)];
             }
         }
     }
@@ -324,9 +326,9 @@ void Game::AddEdgesText() {
     int *gradX = applyGradx(data, width, height);
     int *gradY = applyGrady(data, width, height);
     int *grad = getGrad(gradX, gradY, height, width);
-    unsigned char *theta = GradientOrientation(gradX, gradY, height, width);
-    data = NonMaximumSuppression(grad, theta, height, width);
-    data = Thresholding(grad, max_grad * 0.5, max_grad * 0.3, height, width);
+    double *theta = GradientOrientation(gradX, gradY, height, width);
+    int* suppressed = NonMaximumSuppression(grad, theta, height, width);
+    data = Thresholding(suppressed, max_grad * 0.5, max_grad * 0.3, height, width);
     delete[]  gradX;
     delete[] gradY;
     delete[] grad;
