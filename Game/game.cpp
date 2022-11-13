@@ -2,6 +2,8 @@
 #include "stb_image.h"
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
+#include <numbers>
+
 
 static void printMat(const glm::mat4 mat)
 {
@@ -29,6 +31,7 @@ Game::Game(float angle ,float relationWH, float near1, float far1) : Scene(angle
 #define to_index(i,j) i * width * color_size_bytes + j * color_size_bytes
 #define to_index_normal(i,j) (i) * width + j
 #define pixel_average(ARR, X, Y) ((ARR[X][(Y)] + ARR[X][(Y)+1] + ARR[X][(Y)+2])/3)
+#define PI 3.141592654
 
 static unsigned  char** single_array_to_multi(unsigned  char* data, int width, int height){
     unsigned  char** output = (unsigned  char**)malloc(height * sizeof (unsigned  char*));
@@ -49,6 +52,9 @@ static unsigned char* TwoD2OneD(unsigned  char** arr, int width, int height){
     return output;
 }
 
+static double convert_to_degree(int rad){
+    return rad * (180/ PI );
+}
 static int round(int val, int val_amount){
     return (val / val_amount) * val_amount;
 }
@@ -244,6 +250,18 @@ getGrad(int *gradX, int *gradY, int height, int width){
         }
     return output;
 }
+unsigned char * NonMaxSuppression(int gradient_magnitude, int* gradient_direction, int* grad_x, int* grad_y,int* grad,int height, int width){
+    auto* gradient_orientation = new double;
+    for(int y = 1; y < height -1; y++){
+        for(int x = 1; x< width-1; x++){
+            int index = to_index_normal(y,x);
+            double direction = convert_to_degree(atan2(grad_y[index],grad_x[index]));
+            gradient_orientation[index] = direction;
+        }
+    }
+
+}
+
 
 unsigned char *
 Thresholding(int* grad, int highthresh, int lowthresh ,int height, int width){
