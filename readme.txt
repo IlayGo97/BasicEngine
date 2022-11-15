@@ -1,4 +1,9 @@
-Basic 3D graphics engine - based on the Opengl series of TheCherno 
+Assignment 1 explanation:
+In order to create the 3 textures we worked on game.cpp Game::init function for each texture we added a function which creates the data array and adds it with AddTexture.
+To display the textures we added 4 plane shapes and set each texture to a different shape in Game::init. We also added in scene.cpp at Scene::Draw
+a switch case which assigns each shape a different viewport according to the assignment instructions.
+
+Basic 3D graphics engine - based on the Opengl series of TheCherno
 
 Initialization:
 0. Make sure you download GLFW version suitable to your compiler. 
