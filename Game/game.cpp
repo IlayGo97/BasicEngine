@@ -2,8 +2,8 @@
 #include "stb_image.h"
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
-#include <numbers>
-
+#include <string>
+#include <fstream>
 
 static void printMat(const glm::mat4 mat) {
     std::cout << " matrix:" << std::endl;
@@ -29,6 +29,39 @@ Game::Game(float angle, float relationWH, float near1, float far1) : Scene(angle
 #define to_index_normal(i, j) (i) * width + (j)
 #define pixel_average(ARR, X, Y) ((ARR[X][(Y)] + ARR[X][(Y)+1] + ARR[X][(Y)+2])/3)
 #define PI 3.141592654
+
+static void WriteToTxt(unsigned char* data, int width,int height, std::string name){
+    std::ofstream txt_file;
+    txt_file.open(name, std::ofstream::out);
+    if (txt_file.is_open()) {
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                txt_file << (int) data[to_index(i,j)]/255 << ",";
+            }
+            txt_file << '\n';
+        }
+    } else {
+        std::cout << "error in opening file" << std::endl;
+    }
+    txt_file.close();
+}
+static void WriteToTxt6(unsigned char *output, int width, int height, std::string name) {
+    std::ofstream txt_file;
+    txt_file.open(name, std::ofstream::out);
+    if (txt_file.is_open()) {
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                txt_file << (int) output[to_index(i,j)]/16 << ",";
+            }
+            txt_file << '\n';
+        }
+    } else {
+        std::cout << "error in opening file" << std::endl;
+    }
+    txt_file.close();
+}
+
+
 
 static unsigned char **single_array_to_multi(unsigned char *data, int width, int height) {
     unsigned char **output = (unsigned char **) malloc(height * sizeof(unsigned char *));
@@ -72,7 +105,7 @@ void Game::AddFloydSteinbergText() {
     unsigned char *data = stbi_load("../res/textures/lena256.jpg", &width, &height, &numComponents, 4);
     auto *output = (unsigned char *) malloc(height * width * color_size_bytes * sizeof(unsigned char));
     memcpy(output, data, height * width * color_size_bytes * sizeof(unsigned char));
-    for (int i = 0; i < height - 1; i++)
+    for (int i = 0; i < height - 1; i++) {
         for (int j = 0; j < width - 1; j++) {
             int P = round(data[to_index(i, j)], 16);
             int e = data[to_index(i, j)] - P;
@@ -82,6 +115,8 @@ void Game::AddFloydSteinbergText() {
             inc(data, gamma * e, i + 1, j, width, height);
             inc(data, delta * e, i + 1, j + 1, width, height);
         }
+    }
+    WriteToTxt6(output,width,height,"img6.txt");
     AddTexture(width, height, output);
 }
 
@@ -122,7 +157,10 @@ void Game::AddHalftonePatternText() {
                 white(output2d, 2 * i + 1, 2 * j + color_size_bytes);
             }
         }
-    AddTexture(2 * width, 2 * height, TwoD2OneD(output2d, width * 2, height * 2));
+    // text writing:
+    data = TwoD2OneD(output2d, width * 2, height * 2);
+    WriteToTxt(data,2 * width, 2 * height,"img5.txt");
+    AddTexture(2 * width, 2 * height, data);
 }
 
 //void Game::AddHalftonePatternText() {
@@ -254,7 +292,7 @@ getGrad(int *gradX, int *gradY, int height, int width) {
 }
 
 double *GradientOrientation(int *grad_x, int *grad_y, int height, int width) {
-    auto *gradient_orientation = (double *) malloc (height * width * sizeof(double));
+    auto *gradient_orientation = (double *) malloc(height * width * sizeof(double));
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
             int index = to_index_normal(y, x);
@@ -267,7 +305,7 @@ double *GradientOrientation(int *grad_x, int *grad_y, int height, int width) {
 
 int *
 NonMaximumSuppression(int *gradient_magnitude, double *gradient_direction, int height, int width) {
-    auto *output = (int *) calloc (height * width * sizeof(int), sizeof(int));
+    auto *output = (int *) calloc(height * width * sizeof(int), sizeof(int));
     int pi = 180;
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
@@ -303,18 +341,30 @@ unsigned char *
 Thresholding(int *grad, int highthresh, int lowthresh, int height, int width) {
     auto *output = (unsigned char *) malloc(height * width * color_size_bytes * sizeof(unsigned char));
     memset(output, 0, height * width * color_size_bytes * sizeof(unsigned char));
-    for (int i = 1; i < height - 1; i++)
-        for (int j = 1; j < width - 1; j++) {
-            int index = to_index(i, j);
-            int val = grad[to_index_normal(i, j)];
-            if (val < lowthresh) {
-                set_val(output, index, 0)
-            } else if (val < highthresh) {
-                set_val(output, index, 0)
-            } else {
-                set_val(output, index, 255)
+    std::ofstream txt_file;
+    txt_file.open("img4.txt", std::ofstream::out);
+    if (txt_file.is_open()) {
+        for (int i = 1; i < height - 1; i++) {
+            for (int j = 1; j < width - 1; j++) {
+                int index = to_index(i, j);
+                int val = grad[to_index_normal(i, j)];
+                if (val < lowthresh) {
+                    set_val(output, index, 0);
+                    txt_file << 0 << ",";
+                } else if (val < highthresh) {
+                    set_val(output, index, 0);
+                    txt_file << 0 << ",";
+                } else {
+                    set_val(output, index, 255);
+                    txt_file << 1 << ",";
+                }
             }
+            txt_file << '\n';
         }
+    } else {
+        std::cout << "error in opening file" << std::endl;
+    }
+    txt_file.close();
     return output;
 }
 
@@ -327,7 +377,7 @@ void Game::AddEdgesText() {
     int *gradY = applyGrady(data, width, height);
     int *grad = getGrad(gradX, gradY, height, width);
     double *theta = GradientOrientation(gradX, gradY, height, width);
-    int* suppressed = NonMaximumSuppression(grad, theta, height, width);
+    int *suppressed = NonMaximumSuppression(grad, theta, height, width);
     data = Thresholding(suppressed, max_grad * 0.5, max_grad * 0.3, height, width);
     delete[]  gradX;
     delete[] gradY;
@@ -386,3 +436,4 @@ void Game::Motion() {
 
 Game::~Game(void) {
 }
+
